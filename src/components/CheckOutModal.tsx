@@ -1,23 +1,33 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Room } from "@/types";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Receipt, AlertCircle } from "lucide-react";
+import { Receipt, AlertCircle, Loader2 } from "lucide-react";
 
 interface CheckOutModalProps {
   room: Room | null;
   isOpen: boolean;
   onClose: () => void;
-  onCheckOut: (roomId: string) => void;
+  onCheckOut: (roomId: string) => Promise<void>;
 }
 
 export function CheckOutModal({ room, isOpen, onClose, onCheckOut }: CheckOutModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!room || !room.guest) return null;
 
-  const handleConfirm = () => {
-    onCheckOut(room.id);
-    toast.success(`Guest ${room.guest?.name} checked out from Room ${room.number}. Housekeeping alerted.`);
-    onClose();
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    try {
+      await onCheckOut(room.id);
+      toast.success(`Guest ${room.guest?.name} checked out from Room ${room.number}. Housekeeping alerted.`);
+      onClose();
+    } catch (error) {
+      // Error handled in parent
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -53,10 +63,14 @@ export function CheckOutModal({ room, isOpen, onClose, onCheckOut }: CheckOutMod
         </div>
 
         <DialogFooter className="flex-col sm:flex-col gap-2">
-          <Button onClick={handleConfirm} className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-200">
-            Process Payment & Check Out
+          <Button 
+            onClick={handleConfirm} 
+            disabled={isSubmitting}
+            className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-200"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Process Payment & Check Out"}
           </Button>
-          <Button variant="ghost" onClick={onClose} className="w-full h-12 font-bold text-slate-500 rounded-xl">
+          <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="w-full h-12 font-bold text-slate-500 rounded-xl">
             Go Back
           </Button>
         </DialogFooter>

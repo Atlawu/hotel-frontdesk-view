@@ -5,16 +5,17 @@ import { Label } from "@/components/ui/label";
 import { Room } from "@/types";
 import { useState } from "react";
 import { toast } from "sonner";
-import { User, Mail, Calendar, Hash } from "lucide-react";
+import { User, Mail, Calendar, Hash, Loader2 } from "lucide-react";
 
 interface CheckInModalProps {
   room: Room | null;
   isOpen: boolean;
   onClose: () => void;
-  onCheckIn: (roomId: string, guestData: any) => void;
+  onCheckIn: (roomId: string, guestData: any) => Promise<void>;
 }
 
 export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -23,27 +24,31 @@ export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalP
 
   if (!room) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email) {
       toast.error("Please fill in all guest details");
       return;
     }
     
-    const guestData = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      email: formData.email,
-      confirmationNumber: `CONF-${Math.floor(1000 + Math.random() * 9000)}`,
-      checkIn: new Date().toISOString().split('T')[0],
-      checkOut: new Date(Date.now() + 86400000 * parseInt(formData.duration)).toISOString().split('T')[0],
-      avatar: `https://i.pravatar.cc/150?u=${Math.random()}`
-    };
+    setIsSubmitting(true);
+    try {
+      const guestData = {
+        name: formData.name,
+        email: formData.email,
+        checkIn: new Date().toISOString(),
+        checkOut: new Date(Date.now() + 86400000 * parseInt(formData.duration)).toISOString(),
+      };
 
-    onCheckIn(room.id, guestData);
-    toast.success(`Guest ${formData.name} checked into Room ${room.number} successfully!`);
-    onClose();
-    setFormData({ name: "", email: "", duration: "2" });
+      await onCheckIn(room.id, guestData);
+      toast.success(`Guest ${formData.name} checked into Room ${room.number} successfully!`);
+      onClose();
+      setFormData({ name: "", email: "", duration: "2" });
+    } catch (error) {
+      // Error handled in parent
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -71,6 +76,7 @@ export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalP
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. Rachel Zane"
                 className="h-12 bg-slate-50 border-none rounded-xl"
+                disabled={isSubmitting}
               />
             </div>
             
@@ -85,6 +91,7 @@ export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalP
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="rachel@specterlitt.com"
                 className="h-12 bg-slate-50 border-none rounded-xl"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -100,6 +107,7 @@ export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalP
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                   className="h-12 bg-slate-50 border-none rounded-xl font-bold"
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="grid gap-2">
@@ -114,11 +122,11 @@ export function CheckInModal({ room, isOpen, onClose, onCheckIn }: CheckInModalP
           </div>
 
           <DialogFooter className="pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl font-bold h-12 text-slate-500">
+            <Button type="button" variant="ghost" onClick={onClose} className="rounded-xl font-bold h-12 text-slate-500" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="rounded-xl font-bold h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 px-8">
-              Complete Check-In
+            <Button type="submit" className="rounded-xl font-bold h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 px-8" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Complete Check-In"}
             </Button>
           </DialogFooter>
         </form>
